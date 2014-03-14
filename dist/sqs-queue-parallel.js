@@ -1,5 +1,5 @@
 /**
- * sqs-queue-parallel 0.1.2 <https://github.com/bigluck/sqs-queue-parallel>
+ * sqs-queue-parallel 0.1.3 <https://github.com/bigluck/sqs-queue-parallel>
  * Create a poll of Amazon SQS queue watchers and each one can receive 1+ messages
  *
  * Available under MIT license <https://github.com/bigluck/sqs-queue-parallel/raw/master/LICENSE>
@@ -23,6 +23,9 @@
 
     function SqsQueueParallel(config) {
       var readQueue, self;
+      if (config == null) {
+        config = {};
+      }
       this.config = _.extend({
         region: process.env.AWS_REGION,
         accessKeyId: process.env.AWS_ACCESS_KEY,
@@ -33,7 +36,7 @@
         name: '',
         concurrency: 1,
         debug: true
-      }, config || {});
+      }, config);
       this.client = null;
       this.url = null;
       self = this;
@@ -44,7 +47,7 @@
         return async.waterfall([
           function(next) {
             if (self.config.debug) {
-              console.log("SqsQueueParallel " + self.config.name + "[" + index + "]: waiting");
+              console.log("SqsQueueParallel " + self.config.name + "[" + index + "]: waiting messages");
             }
             return self.client.receiveMessage({
               QueueUrl: self.url,
@@ -55,7 +58,7 @@
           }, function(queue, next) {
             var _ref;
             if (!((_ref = queue.Messages) != null ? _ref[0] : void 0)) {
-              return next();
+              return next(null);
             }
             if (self.config.debug) {
               console.log("SqsQueueParallel " + self.config.name + "[" + index + "]: " + queue.Messages.length + " new messages");
@@ -74,7 +77,7 @@
                 next: cb
               });
             }, function() {
-              return next();
+              return next(null);
             });
           }
         ], function(err) {
@@ -86,8 +89,8 @@
           });
         });
       };
-      this.addListener('newListener', function(e) {
-        if (e !== 'message') {
+      this.addListener('newListener', function(name) {
+        if (name !== 'message') {
           return;
         }
         if (self.config.debug) {
@@ -95,10 +98,7 @@
         }
         if (!this.client || this.listeners("message").length === 1) {
           return this.connect(function(err) {
-            if (err) {
-              return;
-            }
-            if (!(self.listeners("message").length && self.url)) {
+            if (err || !self.url || !self.listeners("message").length) {
               return;
             }
             return _.times(self.config.concurrency || 1, function(index) {
@@ -107,52 +107,65 @@
           });
         }
       });
+      if (this.config.debug) {
+        this.on('connection', function(urls) {
+          return console.log("SqsQueueParallel: connection to SQS", urls);
+        });
+        this.on('connect', function() {
+          return console.log("SqsQueueParallel " + self.config.name + ": connected with url `" + self.url + "`");
+        });
+        this.on('error', function(e) {
+          return console.log("SqsQueueParallel " + self.config.name + ": connection failed", e);
+        });
+      }
     }
 
     SqsQueueParallel.prototype.connect = function(cb) {
       var self;
       if (!(this.client && this.url)) {
-        this.once('connection', function() {
-          return cb();
+        this.once('connect', function() {
+          return cb(null);
         });
-      }
-      if (this.client && !this.url) {
-        return;
+        if (this.client && !this.url) {
+          return;
+        }
       }
       if (this.client) {
         return cb(null);
       }
       self = this;
       this.client = new AWS.SQS({
-        region: this.config.region || process.env.AWS_REGION,
-        accessKeyId: this.config.accessKeyId || process.env.AWS_ACCESS_KEY,
-        secretAccessKey: this.config.secretAccessKey || process.env.AWS_SECRET_KEY
+        region: this.config.region,
+        accessKeyId: this.config.accessKeyId,
+        secretAccessKey: this.config.secretAccessKey
       });
-      this.client.listQueues({
-        QueueNamePrefix: this.config.name
-      }, function(err, data) {
-        var match, name, url, _i, _len, _ref, _ref1;
-        if (data.QueueUrls) {
+      async.waterfall([
+        function(next) {
+          return self.client.listQueues({
+            QueueNamePrefix: self.config.name
+          }, next);
+        }, function(data, next) {
+          var re, url, _i, _len, _ref;
+          re = new RegExp("/[\\d]+/" + self.config.name + "$");
+          self.emit('connection', data.QueueUrls);
           _ref = data.QueueUrls;
           for (_i = 0, _len = _ref.length; _i < _len; _i++) {
             url = _ref[_i];
-            if (!(_ref1 = (new RegExp("/[\\d]+/" + self.config.name + "$")).exec(url), match = _ref1[0], name = _ref1[1], _ref1)) {
-              continue;
+            if (re.test(url)) {
+              self.emit('connect', self.url = url);
             }
-            if (self.config.debug) {
-              console.log("SqsQueueParallel " + self.config.name + ": connected with url `" + url + "`");
-            }
-            self.url = url;
-            self.emit('connection', {
-              client: self.client,
-              url: url
-            });
+          }
+          if (!self.url) {
+            self.emit('error', new Error('Queue not found'));
+            return next('Queue not found');
           }
         }
-        if (!self.url) {
-          self.emit('error', new Error('Queue not found'));
-          return cb('Queue not found');
+      ], function(err) {
+        if (!err) {
+          return;
         }
+        self.emit('error', err);
+        return cb.apply(null, arguments);
       });
       return this;
     };

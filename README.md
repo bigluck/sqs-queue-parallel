@@ -1,14 +1,22 @@
 # sqs-queue-parallel.js
 
-sqs-queue-parallel is a node.js library build on top of Amazon AWS SQS with concurrency and parallel message poll support.
+sqs-queue-parallel is a **node.js** library build on top of **Amazon AWS SQS** with **concurrency and parallel** message poll support.
 
-You can create a poll of SQS queue watchers and each one can receive 1+ messages from Amazon SQS.
+You can create a poll of SQS queue watchers, each one can receive 1 or more messages from Amazon SQS.
+
+With sqs-queue-parallel you need just to configure your AWS private keys, setup your one o more `message` event callbacks and wait for new messages to be processed.
+
 
 
 # Example
+
 ```javascript
 var SqsQueueParallel = require('sqs-queue-parallel');
 
+// Simple configuration:
+//  - 2 concurrency listeners
+//  - each listener can receive up to 4 messages
+// With this configuration you could receive and parse 8 `message` events in parallel
 var queue = new SqsQueueParallel({
 	name: "sqs-test",
 	maxNumberOfMessages: 4,
@@ -31,21 +39,24 @@ queue.on('error', function (err)
 
 You can download and install this library using Node Package Manager (npm):
 
-	npm install sqs-queue-parallel --save
+```bash
+npm install sqs-queue-parallel --save
+```
 
 
 # Summary
 
-* Constructor:
+* [Constructor](#constructor):
 	* new SqsQueueParallel(options = {})
-* Methods:
+* [Methods](#methods):
 	* push(message = {}, callback)
 	* delete(receiptHandle, callback)
-* Properties:
+* [Properties](#properties):
 	* client
 	* url
-* Events:
+* [Events](#events):
 	* connection
+	* connect
 	* message
 	* error
 
@@ -57,6 +68,7 @@ You can download and install this library using Node Package Manager (npm):
 
 
 # Constructor
+
 
 ## new SqsQueueParallel(options = {})
 
@@ -89,18 +101,23 @@ Each `concurrency` queue can read `maxNumberOfMessages` messages from Amazon SQS
 For example, **2** `concurrency` queue with **5** `maxNumberOfMessages` can trigger a max of **5 * 2 = 10** `message` events; so it's very important to be carefull, expecially if you're working with I/O streams.
 
 
+
 # Properties
+
 
 ## queue.client
 
 Returns the SQS client object used by the queue.
+
 
 ## queue.url
 
 Url of the connected queue.
 
 
+
 # Methods
+
 
 ## queue.push(params = {}, callback)
 
@@ -118,7 +135,9 @@ Build on the top of `SQS.sendMessage()` allow you to easly push a message to the
 
 **Callback (callback):**
 
-`function(err, data) {} `
+```javascript
+function(err, data) {}
+```
 
 For more information take checkout the [official AWS documentation](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SQS.html#sendMessage-property).
 
@@ -156,7 +175,9 @@ Build on the top of `SQS.deleteMessage()` allow you to easly delete a message fr
 
 **Callback (callback):**
 
-`function(err, data) {} `
+```javascript
+function(err, data) {}
+```
 
 For more information take checkout the official [AWS documentation](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SQS.html#deleteMessage-property).
 
@@ -176,20 +197,40 @@ queue.delete('receipt-handle-to-delete-2'); function (err, data)
 });
 ```
 
+
+
 # Events
+
 
 ## connection
 
-`function(client, url) { }`
+```javascript
+function(urls) { }
+```
 
-* **client** (Object): SQS client object used by the queue
-* **url** (Object): url of the connected queue.
+Triggered when a connection is established with the remote server.
+
+* **urls** (Array): list of all remotes urls
+
+
+## connect
+
+```javascript
+function(url) { }
+```
+
+Triggered when the required queue `name` is found in the remote list of queues.
+
+* **url** (Object): url of the connected queue
+
 
 ## message
 
-`function(message) { }`
+```javascript
+function(message) { }
+```
 
-SqsQueueParallel emit an `message` event each time a new message has been received from the queue.
+Event triggered each time a new message has been received from the remote queue.
 
 * **message** (Object)
 	* type (String): default is "Message"
@@ -203,6 +244,35 @@ SqsQueueParallel emit an `message` event each time a new message has been receiv
 	* push(params = {}, callback) (Function): push a new message in the queue
 	* **next()** (Function): call this method when you've completed your jobs in the event callback.
 
+
 ## error
 
-`function(error) { }`
+```javascript
+function(error) { }
+```
+
+
+
+# License
+
+(The MIT License)
+
+Copyright (c) 2014 Luca Bigon
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.

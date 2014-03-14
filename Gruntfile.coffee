@@ -28,3 +28,7 @@ module.exports = (grunt) ->
 		'coffee'
 		'usebanner'
 	]
+	grunt.registerTask 'dist', [
+		'coffee'
+		'usebanner'
+	]

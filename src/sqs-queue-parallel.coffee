@@ -3,10 +3,8 @@ events = require 'events'
 async = require 'async'
 _ = require 'lodash'
 
-
 module.exports = class SqsQueueParallel extends events.EventEmitter
-	
-	constructor: (config) ->
+	constructor: (config={}) ->
 		@config = _.extend
 			region: process.env.AWS_REGION
 			accessKeyId: process.env.AWS_ACCESS_KEY
@@ -17,8 +15,7 @@ module.exports = class SqsQueueParallel extends events.EventEmitter
 			name: ''
 			concurrency: 1
 			debug: true
-		, config or {}
-
+		, config
 		@client = null
 		@url = null
 		self = @
@@ -27,7 +24,7 @@ module.exports = class SqsQueueParallel extends events.EventEmitter
 			return unless self.listeners("message").length and self.url
 			async.waterfall [
 				(next) ->
-					console.log "SqsQueueParallel #{ self.config.name }[#{ index }]: waiting" if self.config.debug
+					console.log "SqsQueueParallel #{ self.config.name }[#{ index }]: waiting messages" if self.config.debug
 					self.client.receiveMessage 
 						QueueUrl: self.url
 						MaxNumberOfMessages: self.config.maxNumberOfMessages
@@ -35,7 +32,7 @@ module.exports = class SqsQueueParallel extends events.EventEmitter
 						WaitTimeSeconds: self.config.waitTimeSeconds
 					, next
 				(queue, next) ->
-					return next() unless queue.Messages?[0]
+					return next null unless queue.Messages?[0]
 					console.log "SqsQueueParallel #{ self.config.name }[#{ index }]: #{ queue.Messages.length } new messages" if self.config.debug
 					async.eachSeries queue.Messages, (message, cb) ->
 						self.emit "message", 
@@ -49,48 +46,55 @@ module.exports = class SqsQueueParallel extends events.EventEmitter
 								self.delete message.ReceiptHandle, cb
 							next: cb
 					, ->
-						next()
+						next null
 			], (err) ->
 				self.emit "error", arguments... if err
 				process.nextTick ->
 					readQueue index
 
-		@addListener 'newListener', (e) ->
-			return unless e is 'message'
+		@addListener 'newListener', (name) ->
+			return unless name is 'message'
 			console.info "SqsQueueParallel #{ self.config.name }: new listener" if self.config.debug
 			if not @client or @listeners("message").length is 1
 				@connect (err) ->
-					return if err
-					return unless self.listeners("message").length and self.url
+					return if err or not self.url or not self.listeners("message").length
 					_.times self.config.concurrency or 1, (index) ->
 						readQueue index
-
+		if @config.debug
+			@on 'connection', (urls) ->
+				console.log "SqsQueueParallel: connection to SQS", urls
+			@on 'connect', ->
+				console.log "SqsQueueParallel #{ self.config.name }: connected with url `#{ self.url }`"
+			@on 'error', (e) ->
+				console.log "SqsQueueParallel #{ self.config.name }: connection failed", e
 	connect: (cb) ->
 		unless @client and @url
-			@once 'connection', ->
-				cb()
-		return if @client and not @url
+			@once 'connect', ->
+				cb null
+			return if @client and not @url
 		return cb null if @client
 		self = @
 		@client = new AWS.SQS
-			region: @config.region or process.env.AWS_REGION
-			accessKeyId: @config.accessKeyId or process.env.AWS_ACCESS_KEY
-			secretAccessKey: @config.secretAccessKey or process.env.AWS_SECRET_KEY
-		@client.listQueues
-			QueueNamePrefix: @config.name
-		, (err, data) ->
-			if data.QueueUrls
-				for url in data.QueueUrls when [match, name] = ( new RegExp "/[\\d]+/#{ self.config.name }$" ).exec url
-					console.log "SqsQueueParallel #{ self.config.name }: connected with url `#{ url }`" if self.config.debug
-					self.url = url
-					self.emit 'connection',
-						client: self.client
-						url: url
-			unless self.url
-				self.emit 'error', new Error 'Queue not found'
-				cb 'Queue not found'
+			region: @config.region
+			accessKeyId: @config.accessKeyId
+			secretAccessKey: @config.secretAccessKey
+		async.waterfall [
+			(next) ->
+				self.client.listQueues
+					QueueNamePrefix: self.config.name
+				, next
+			(data, next) -> 
+				re = new RegExp "/[\\d]+/#{ self.config.name }$"
+				self.emit 'connection', data.QueueUrls
+				self.emit 'connect', self.url = url for url in data.QueueUrls when re.test url
+				unless self.url
+					self.emit 'error', new Error 'Queue not found'
+					next 'Queue not found'
+		], (err) ->
+			return unless err
+			self.emit 'error', err
+			cb arguments...
 		@
-
 	push: (message={}, cb) ->
 		self = @
 		@connect (err) ->
@@ -101,7 +105,6 @@ module.exports = class SqsQueueParallel extends events.EventEmitter
 			params.DelaySeconds = message.delay if message.delay?
 			self.client.sendMessage params, cb
 		@
-
 	delete: (receiptHandle, cb) ->
 		self = @
 		@connect (err) ->
