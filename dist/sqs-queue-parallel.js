@@ -1,8 +1,8 @@
 /**
- * sqs-queuereceiver 0.1.0 <https://github.com/BigLuck/sqs-queue-parallel>
- * Amazon AWS SQS queue receiver with customized concurrency parallel listener
+ * sqs-queue-parallel 0.1.2 <https://github.com/bigluck/sqs-queue-parallel>
+ * Create a poll of Amazon SQS queue watchers and each one can receive 1+ messages
  *
- * Available under MIT license <https://github.com/BigLuck/sqs-queue-parallel/raw/master/LICENSE>
+ * Available under MIT license <https://github.com/bigluck/sqs-queue-parallel/raw/master/LICENSE>
  */
 (function() {
   var AWS, SqsQueueParallel, async, events, _,
