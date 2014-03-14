@@ -1,9 +1,9 @@
 {
-	"name": "sqs-queuereceiver",
+	"name": "sqs-queue-parallel",
 	"description": "Create a poll of Amazon SQS queue watchers and each one can receive 1+ messages",
 	"main": "dist/sqs-queue-parallel",
 	"author": "Luca Bigon",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"license": "ISC",
 	"repository": {
 		"type": "git",
