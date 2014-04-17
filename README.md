@@ -25,8 +25,7 @@ var queue = new SqsQueueParallel({
 queue.on('message', function (e, next)
 {
 	console.log('New message: ', e.metadata, e.data.MessageId)
-	e.delete()
-	e.next()
+	e.deleteMessage()
 });
 queue.on('error', function (err)
 {
@@ -49,8 +48,9 @@ npm install sqs-queue-parallel --save
 * [Constructor](#constructor):
 	* new SqsQueueParallel(options = {})
 * [Methods](#methods):
-	* push(message = {}, callback)
-	* delete(receiptHandle, callback)
+	* sendMessage(message = {}, callback)
+	* deleteMessage(receiptHandle, callback)
+	* changeMessageVisibility(receiptHandle, timeout, callback)
 * [Properties](#properties):
 	* client
 	* url
@@ -119,7 +119,7 @@ Url of the connected queue.
 # Methods
 
 
-## queue.push(params = {}, callback)
+## queue.sendMessage(params = {}, callback)
 
 Build on the top of `SQS.sendMessage()` allow you to easly push a message to the connected queue.
 
@@ -147,11 +147,11 @@ For more information take checkout the [official AWS documentation](http://docs.
 var SqsQueueParallel = require('src/sqs-queue-parallel');
 
 var queue = new SqsQueueParallel({ name: "sqs-test" });
-queue.push({
+queue.sendMessage({
 	body: 'my message',
-	delay: 10	
+	delay: 10
 });
-queue.push({
+queue.sendMessage({
 	body: [1, 2, 3]
 }, function (err, data)
 {
@@ -163,7 +163,47 @@ queue.push({
 ```
 
 
-## queue.delete(receiptHandle, callback)
+## queue.changeMessageVisibility(receiptHandle, timeout, callback)
+
+Build on the top of `SQS.changeMessageVisibility()` allow you to easly delay a message from the connected queue.
+
+**Parameters:**
+
+* **receipHandler** (String)
+
+	The receipt handle associated with the message to delay.
+
+* **timeout** (Integer)
+
+	The new value (in seconds - from 0 to 43200 - maximum 12 hours) for the message's visibility timeout.
+
+**Callback (callback):**
+
+```javascript
+function(err, data) {}
+```
+
+For more information take checkout the official [AWS documentation](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SQS.html#changeMessageVisibility-property).
+
+**Esample:**
+
+```javascript
+var SqsQueueParallel = require('src/sqs-queue-parallel');
+
+var queue = new SqsQueueParallel({ name: "sqs-test" });
+queue.changeMessageVisibility('receipt-handle-to-delay-1', 30);
+queue.on('message', function (job)
+{
+	if (myTest is true)
+		job.deleteMessage();
+	else
+		job.changeMessageVisibility(30);
+	job.next();
+});
+```
+
+
+## queue.deleteMessage(receiptHandle, callback)
 
 Build on the top of `SQS.deleteMessage()` allow you to easly delete a message from the connected queue.
 
@@ -187,13 +227,11 @@ For more information take checkout the official [AWS documentation](http://docs.
 var SqsQueueParallel = require('src/sqs-queue-parallel');
 
 var queue = new SqsQueueParallel({ name: "sqs-test" });
-queue.delete('receipt-handle-to-delete-1');
-queue.delete('receipt-handle-to-delete-2'); function (err, data)
+queue.deleteMessage('receipt-handle-to-delete-1');
+queue.on('message', function (job)
 {
-	if (err)
-		console.log('There was a problem: ', err);
-	else
-		console.log('Item deleted', data);
+	if (myTest is true)
+		job.deleteMessage();
 });
 ```
 
@@ -237,11 +275,15 @@ Event triggered each time a new message has been received from the remote queue.
 	* data (Unknown): JSON.parsed message.Body or a string (if could not be parsed)
 	* message (Object): reference to the received message
 	* metadata (Object): reference to the metadata of the received message
+	* name (String): name of the remote queue
 	* url (String): url of the connected queue
-	* delete(callback) (Function):
+	* **deleteMessage(callback)** (Function):
 	
-		Helper to delete (or `SQS.deleteMessage()`) this message; `callback` is the same of the public `delete()` method
-	* push(params = {}, callback) (Function): push a new message in the queue
+		Helper to deleteMessage (or `SQS.deleteMessage()`) this message; `callback` is the same of the public `deleteMessage()` method
+	* **changeMessageVisibility(timeout, callback)** (Function):
+	
+		Helper to changeMessageVisibility (or `SQS.changeMessageVisibility()`) this message; `callback` is the same of the public `changeMessageVisibility()` method
+	* **sendMessage(params = {}, callback)** (Function): send a new message in the queue
 	* **next()** (Function): call this method when you've completed your jobs in the event callback.
 
 

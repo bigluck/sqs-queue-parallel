@@ -1,11 +1,11 @@
 /**
- * sqs-queue-parallel 0.1.3 <https://github.com/bigluck/sqs-queue-parallel>
+ * sqs-queue-parallel 0.1.4 <https://github.com/bigluck/sqs-queue-parallel>
  * Create a poll of Amazon SQS queue watchers and each one can receive 1+ messages
  *
  * Available under MIT license <https://github.com/bigluck/sqs-queue-parallel/raw/master/LICENSE>
  */
 (function() {
-  var AWS, SqsQueueParallel, async, events, _,
+  var AWS, SqsQueueParallel, async, events, globalConfig, _,
     __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     __slice = [].slice;
@@ -18,8 +18,17 @@
 
   _ = require('lodash');
 
+  globalConfig = {};
+
   module.exports = SqsQueueParallel = (function(_super) {
     __extends(SqsQueueParallel, _super);
+
+    SqsQueueParallel.configure = function(config) {
+      if (config == null) {
+        config = {};
+      }
+      return globalConfig = _.extend(globalConfig, config);
+    };
 
     function SqsQueueParallel(config) {
       var readQueue, self;
@@ -36,7 +45,7 @@
         name: '',
         concurrency: 1,
         debug: true
-      }, config);
+      }, globalConfig, config);
       this.client = null;
       this.url = null;
       self = this;
@@ -63,18 +72,23 @@
             if (self.config.debug) {
               console.log("SqsQueueParallel " + self.config.name + "[" + index + "]: " + queue.Messages.length + " new messages");
             }
-            return async.eachSeries(queue.Messages, function(message, cb) {
+            return async.eachSeries(queue.Messages, function(message, next) {
               return self.emit("message", {
                 type: 'message',
                 data: JSON.parse(message.Body) || message.Body,
                 message: message,
                 metadata: queue.ResponseMetadata,
                 url: self.url,
-                "delete": function(cb) {
-                  console.log('before delete: ', message);
-                  return self["delete"](message.ReceiptHandle, cb);
+                name: self.config.name,
+                deleteMessage: function(cb) {
+                  next();
+                  return self.deleteMessage(message.ReceiptHandle, cb);
                 },
-                next: cb
+                next: next,
+                changeMessageVisibility: function(timeout, cb) {
+                  next();
+                  return self.changeMessageVisibility(message.ReceiptHandle, timeout, cb);
+                }
               });
             }, function() {
               return next(null);
@@ -170,16 +184,22 @@
       return this;
     };
 
-    SqsQueueParallel.prototype.push = function(message, cb) {
+    SqsQueueParallel.prototype.sendMessage = function(message, cb) {
       var self;
       if (message == null) {
         message = {};
+      }
+      if (cb == null) {
+        cb = function() {};
       }
       self = this;
       this.connect(function(err) {
         var params;
         if (err) {
           return cb.apply(null, arguments);
+        }
+        if (self.config.debug) {
+          console.log("SqsQueueParallel " + self.config.name + ": before sendMessage with url `" + self.url + "`");
         }
         params = {
           MessageBody: JSON.stringify(message.body || {}),
@@ -193,16 +213,47 @@
       return this;
     };
 
-    SqsQueueParallel.prototype["delete"] = function(receiptHandle, cb) {
+    SqsQueueParallel.prototype.deleteMessage = function(receiptHandle, cb) {
       var self;
+      if (cb == null) {
+        cb = function() {};
+      }
       self = this;
       this.connect(function(err) {
         if (err) {
           return cb.apply(null, arguments);
         }
+        if (self.config.debug) {
+          console.log("SqsQueueParallel " + self.config.name + ": before deleteMessage " + receiptHandle + " with url `" + self.url + "`");
+        }
         return self.client.deleteMessage({
           QueueUrl: self.url,
           ReceiptHandle: receiptHandle
+        }, cb);
+      });
+      return this;
+    };
+
+    SqsQueueParallel.prototype.changeMessageVisibility = function(receiptHandle, timeout, cb) {
+      var self;
+      if (timeout == null) {
+        timeout = 30;
+      }
+      if (cb == null) {
+        cb = function() {};
+      }
+      self = this;
+      this.connect(function(err) {
+        if (err) {
+          return cb.apply(null, arguments);
+        }
+        if (self.config.debug) {
+          console.log("SqsQueueParallel " + self.config.name + ": before changeMessageVisibility " + receiptHandle + " with url `" + self.url + "`");
+        }
+        return self.client.changeMessageVisibility({
+          QueueUrl: self.url,
+          ReceiptHandle: receiptHandle,
+          VisibilityTimeout: timeout
         }, cb);
       });
       return this;

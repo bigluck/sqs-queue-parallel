@@ -3,7 +3,11 @@ events = require 'events'
 async = require 'async'
 _ = require 'lodash'
 
+globalConfig = {}
+
 module.exports = class SqsQueueParallel extends events.EventEmitter
+	@configure: (config={}) ->
+		globalConfig = _.extend globalConfig, config
 	constructor: (config={}) ->
 		@config = _.extend
 			region: process.env.AWS_REGION
@@ -15,7 +19,7 @@ module.exports = class SqsQueueParallel extends events.EventEmitter
 			name: ''
 			concurrency: 1
 			debug: true
-		, config
+		, globalConfig, config
 		@client = null
 		@url = null
 		self = @
@@ -34,17 +38,21 @@ module.exports = class SqsQueueParallel extends events.EventEmitter
 				(queue, next) ->
 					return next null unless queue.Messages?[0]
 					console.log "SqsQueueParallel #{ self.config.name }[#{ index }]: #{ queue.Messages.length } new messages" if self.config.debug
-					async.eachSeries queue.Messages, (message, cb) ->
+					async.eachSeries queue.Messages, (message, next) ->
 						self.emit "message", 
 							type: 'message'
 							data: JSON.parse(message.Body) or message.Body
 							message: message
 							metadata: queue.ResponseMetadata
 							url: self.url
-							delete: (cb) ->
-								console.log 'before delete: ', message
-								self.delete message.ReceiptHandle, cb
-							next: cb
+							name: self.config.name
+							deleteMessage: (cb) ->
+								next()
+								self.deleteMessage message.ReceiptHandle, cb
+							next: next
+							changeMessageVisibility: (timeout, cb) ->
+								next()
+								self.changeMessageVisibility message.ReceiptHandle, timeout, cb
 					, ->
 						next null
 			], (err) ->
@@ -95,22 +103,35 @@ module.exports = class SqsQueueParallel extends events.EventEmitter
 			self.emit 'error', err
 			cb arguments...
 		@
-	push: (message={}, cb) ->
+	sendMessage: (message={}, cb=->) ->
 		self = @
 		@connect (err) ->
 			return cb arguments... if err
+			console.log "SqsQueueParallel #{ self.config.name }: before sendMessage with url `#{ self.url }`" if self.config.debug
 			params =
 				MessageBody: JSON.stringify message.body or {}
 				QueueUrl: self.url
 			params.DelaySeconds = message.delay if message.delay?
 			self.client.sendMessage params, cb
 		@
-	delete: (receiptHandle, cb) ->
+	deleteMessage: (receiptHandle, cb=->) ->
 		self = @
 		@connect (err) ->
 			return cb arguments... if err
+			console.log "SqsQueueParallel #{ self.config.name }: before deleteMessage #{ receiptHandle } with url `#{ self.url }`" if self.config.debug
 			self.client.deleteMessage
 				QueueUrl: self.url
 				ReceiptHandle: receiptHandle
+			, cb
+		@
+	changeMessageVisibility: (receiptHandle, timeout=30, cb=->) ->
+		self = @
+		@connect (err) ->
+			return cb arguments... if err
+			console.log "SqsQueueParallel #{ self.config.name }: before changeMessageVisibility #{ receiptHandle } with url `#{ self.url }`" if self.config.debug
+			self.client.changeMessageVisibility
+				QueueUrl: self.url
+				ReceiptHandle: receiptHandle
+				VisibilityTimeout: timeout
 			, cb
 		@
