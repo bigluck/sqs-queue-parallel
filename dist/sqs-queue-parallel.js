@@ -1,5 +1,5 @@
 /**
- * sqs-queue-parallel 0.1.4 <https://github.com/bigluck/sqs-queue-parallel>
+ * sqs-queue-parallel 0.1.5 <https://github.com/bigluck/sqs-queue-parallel>
  * Create a poll of Amazon SQS queue watchers and each one can receive 1+ messages
  *
  * Available under MIT license <https://github.com/bigluck/sqs-queue-parallel/raw/master/LICENSE>
@@ -39,12 +39,12 @@
         region: process.env.AWS_REGION,
         accessKeyId: process.env.AWS_ACCESS_KEY,
         secretAccessKey: process.env.AWS_SECRET_KEY,
-        visibilityTimeout: 30,
+        visibilityTimeout: null,
         waitTimeSeconds: 20,
         maxNumberOfMessages: 1,
         name: '',
         concurrency: 1,
-        debug: true
+        debug: false
       }, globalConfig, config);
       this.client = null;
       this.url = null;
@@ -55,15 +55,15 @@
         }
         return async.waterfall([
           function(next) {
+            var options;
             if (self.config.debug) {
               console.log("SqsQueueParallel " + self.config.name + "[" + index + "]: waiting messages");
             }
-            return self.client.receiveMessage({
+            return self.client.receiveMessage((options = {
               QueueUrl: self.url,
               MaxNumberOfMessages: self.config.maxNumberOfMessages,
-              VisibilityTimeout: self.config.visibilityTimeout,
               WaitTimeSeconds: self.config.waitTimeSeconds
-            }, next);
+            }, self.config.visibilityTimeout != null ? options.VisibilityTimeout = self.config.visibilityTimeout : void 0, options), next);
           }, function(queue, next) {
             var _ref;
             if (!((_ref = queue.Messages) != null ? _ref[0] : void 0)) {
@@ -80,11 +80,14 @@
                 metadata: queue.ResponseMetadata,
                 url: self.url,
                 name: self.config.name,
+                next: next,
                 deleteMessage: function(cb) {
                   next();
                   return self.deleteMessage(message.ReceiptHandle, cb);
                 },
-                next: next,
+                delay: function(timeout, cb) {
+                  return self.changeMessageVisibility(message.ReceiptHandle, timeout, cb);
+                },
                 changeMessageVisibility: function(timeout, cb) {
                   next();
                   return self.changeMessageVisibility(message.ReceiptHandle, timeout, cb);

@@ -13,12 +13,12 @@ module.exports = class SqsQueueParallel extends events.EventEmitter
 			region: process.env.AWS_REGION
 			accessKeyId: process.env.AWS_ACCESS_KEY
 			secretAccessKey: process.env.AWS_SECRET_KEY
-			visibilityTimeout: 30
+			visibilityTimeout: null
 			waitTimeSeconds: 20
 			maxNumberOfMessages: 1
 			name: ''
 			concurrency: 1
-			debug: true
+			debug: false
 		, globalConfig, config
 		@client = null
 		@url = null
@@ -29,11 +29,14 @@ module.exports = class SqsQueueParallel extends events.EventEmitter
 			async.waterfall [
 				(next) ->
 					console.log "SqsQueueParallel #{ self.config.name }[#{ index }]: waiting messages" if self.config.debug
-					self.client.receiveMessage 
-						QueueUrl: self.url
-						MaxNumberOfMessages: self.config.maxNumberOfMessages
-						VisibilityTimeout: self.config.visibilityTimeout
-						WaitTimeSeconds: self.config.waitTimeSeconds
+					self.client.receiveMessage (
+						options =
+							QueueUrl: self.url
+							MaxNumberOfMessages: self.config.maxNumberOfMessages
+							WaitTimeSeconds: self.config.waitTimeSeconds
+						options.VisibilityTimeout = self.config.visibilityTimeout if self.config.visibilityTimeout?
+						options
+					)
 					, next
 				(queue, next) ->
 					return next null unless queue.Messages?[0]
@@ -46,10 +49,12 @@ module.exports = class SqsQueueParallel extends events.EventEmitter
 							metadata: queue.ResponseMetadata
 							url: self.url
 							name: self.config.name
+							next: next
 							deleteMessage: (cb) ->
 								next()
 								self.deleteMessage message.ReceiptHandle, cb
-							next: next
+							delay: (timeout, cb) ->
+								self.changeMessageVisibility message.ReceiptHandle, timeout, cb
 							changeMessageVisibility: (timeout, cb) ->
 								next()
 								self.changeMessageVisibility message.ReceiptHandle, timeout, cb

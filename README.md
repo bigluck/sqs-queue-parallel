@@ -87,11 +87,11 @@ var queue = new SqsQueueParallel({ name: 'sqs-test' });
 * **region** (String) — the region to send/read service requests. Default is `process.env.AWS_REGION`
 * **accessKeyId** (String) — your AWS access key ID. Default is `process.env.AWS_ACCESS_KEY`
 * **secretAccessKey** (String) — your AWS secret access key. Default is `process.env.AWS_SECRET_KEY`
-* **visibilityTimeout** (Integer) — duration (in seconds) that the received messages are hidden from subsequent retrieve requests after being retrieved by a ReceiveMessage request. Default is 30
+* **visibilityTimeout** (Integer) — duration (in seconds) that the received messages are hidden from subsequent retrieve requests after being retrieved by a ReceiveMessage request.
 * **waitTimeSeconds** (Integer) — duration (in seconds) for which the call will wait for a message to arrive in the queue before returning. If a message is available, the call will return sooner than WaitTimeSeconds. Default is 20
 * **maxNumberOfMessages** (Integer) — maximum number of messages to return. Amazon SQS never returns more messages than this value but may return fewer. Default is 1
 * **concurrency** (Integer) — number of concurrency fetcher to start. Default is 1
-* **debug** (Boolean) — enable debug mode. Default is true
+* **debug** (Boolean) — enable debug mode. Default is false
 
 
 **Important**:
@@ -279,10 +279,13 @@ Event triggered each time a new message has been received from the remote queue.
 	* url (String): url of the connected queue
 	* **deleteMessage(callback)** (Function):
 	
-		Helper to deleteMessage (or `SQS.deleteMessage()`) this message; `callback` is the same of the public `deleteMessage()` method
+		Helper to deleteMessage (or `SQS.deleteMessage()`) when the job is completed; `callback` is the same of the public `deleteMessage()` method
 	* **changeMessageVisibility(timeout, callback)** (Function):
 	
-		Helper to changeMessageVisibility (or `SQS.changeMessageVisibility()`) this message; `callback` is the same of the public `changeMessageVisibility()` method
+		Helper to changeMessageVisibility (or `SQS.changeMessageVisibility()`) when the job is completed; `callback` is the same of the public `changeMessageVisibility()` method
+	* **delay(timeout, callback)** (Function):
+	
+		Helper to changeMessageVisibility (or `SQS.changeMessageVisibility()`) without completing the job; `callback` is the same of the public `changeMessageVisibility()` method
 	* **sendMessage(params = {}, callback)** (Function): send a new message in the queue
 	* **next()** (Function): call this method when you've completed your jobs in the event callback.
 
