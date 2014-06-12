@@ -51,12 +51,10 @@ module.exports = class SqsQueueParallel extends events.EventEmitter
 							name: self.config.name
 							next: next
 							deleteMessage: (cb) ->
-								next()
 								self.deleteMessage message.ReceiptHandle, cb
 							delay: (timeout, cb) ->
 								self.changeMessageVisibility message.ReceiptHandle, timeout, cb
 							changeMessageVisibility: (timeout, cb) ->
-								next()
 								self.changeMessageVisibility message.ReceiptHandle, timeout, cb
 					, ->
 						next null

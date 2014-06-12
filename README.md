@@ -22,10 +22,12 @@ var queue = new SqsQueueParallel({
 	maxNumberOfMessages: 4,
 	concurrency: 2
 });
-queue.on('message', function (e, next)
+queue.on('message', function (e)
 {
 	console.log('New message: ', e.metadata, e.data.MessageId)
-	e.deleteMessage()
+	e.deleteMessage(function(err, data) {
+	    e.next();
+	});
 });
 queue.on('error', function (err)
 {
@@ -221,7 +223,7 @@ function(err, data) {}
 
 For more information take checkout the official [AWS documentation](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SQS.html#deleteMessage-property).
 
-**Esample:**
+**Example:**
 
 ```javascript
 var SqsQueueParallel = require('src/sqs-queue-parallel');
@@ -231,7 +233,9 @@ queue.deleteMessage('receipt-handle-to-delete-1');
 queue.on('message', function (job)
 {
 	if (myTest is true)
-		job.deleteMessage();
+		job.deleteMessage(function(err, data) {
+		    job.next();
+		});
 });
 ```
 
