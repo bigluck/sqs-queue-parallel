@@ -1,5 +1,5 @@
 /**
- * sqs-queue-parallel 0.1.5 <https://github.com/bigluck/sqs-queue-parallel>
+ * sqs-queue-parallel 0.1.6 <https://github.com/bigluck/sqs-queue-parallel>
  * Create a poll of Amazon SQS queue watchers and each one can receive 1+ messages
  *
  * Available under MIT license <https://github.com/bigluck/sqs-queue-parallel/raw/master/LICENSE>
@@ -82,14 +82,12 @@
                 name: self.config.name,
                 next: next,
                 deleteMessage: function(cb) {
-                  next();
                   return self.deleteMessage(message.ReceiptHandle, cb);
                 },
                 delay: function(timeout, cb) {
                   return self.changeMessageVisibility(message.ReceiptHandle, timeout, cb);
                 },
                 changeMessageVisibility: function(timeout, cb) {
-                  next();
                   return self.changeMessageVisibility(message.ReceiptHandle, timeout, cb);
                 }
               });
