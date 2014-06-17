@@ -61,6 +61,7 @@
             }
             return self.client.receiveMessage((options = {
               QueueUrl: self.url,
+              AttributeNames: ["All"],
               MaxNumberOfMessages: self.config.maxNumberOfMessages,
               WaitTimeSeconds: self.config.waitTimeSeconds
             }, self.config.visibilityTimeout != null ? options.VisibilityTimeout = self.config.visibilityTimeout : void 0, options), next);

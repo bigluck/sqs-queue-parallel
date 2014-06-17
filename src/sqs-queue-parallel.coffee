@@ -32,6 +32,7 @@ module.exports = class SqsQueueParallel extends events.EventEmitter
 					self.client.receiveMessage (
 						options =
 							QueueUrl: self.url
+							AttributeNames: ["All"]
 							MaxNumberOfMessages: self.config.maxNumberOfMessages
 							WaitTimeSeconds: self.config.waitTimeSeconds
 						options.VisibilityTimeout = self.config.visibilityTimeout if self.config.visibilityTimeout?
@@ -42,7 +43,7 @@ module.exports = class SqsQueueParallel extends events.EventEmitter
 					return next null unless queue.Messages?[0]
 					console.log "SqsQueueParallel #{ self.config.name }[#{ index }]: #{ queue.Messages.length } new messages" if self.config.debug
 					async.eachSeries queue.Messages, (message, next) ->
-						self.emit "message", 
+						self.emit "message",
 							type: 'message'
 							data: JSON.parse(message.Body) or message.Body
 							message: message
@@ -94,7 +95,7 @@ module.exports = class SqsQueueParallel extends events.EventEmitter
 				self.client.listQueues
 					QueueNamePrefix: self.config.name
 				, next
-			(data, next) -> 
+			(data, next) ->
 				re = new RegExp "/[\\d]+/#{ self.config.name }$"
 				self.emit 'connection', data.QueueUrls
 				self.emit 'connect', self.url = url for url in data.QueueUrls when re.test url
