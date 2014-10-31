@@ -5,9 +5,9 @@ queue = new SqsQueueParallel
 	maxNumberOfMessages: 4
 	concurrency: 2
 
-queue.on 'message', (e, next) ->
+queue.on 'message', (e) ->
 	console.log 'New message: ', e.metadata, e.data.MessageId
-	e.delete()
+	e.deleteMessage()
 	e.next()
 
 queue.on 'error', (err) ->
