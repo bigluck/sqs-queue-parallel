@@ -65,7 +65,7 @@ npm install sqs-queue-parallel --save
 * Global env:
 	* AWS_REGION
 	* AWS_ACCESS_KEY
-	* AWS_SECREY_KEY
+	* AWS_SECRET_KEY
 
 
 
