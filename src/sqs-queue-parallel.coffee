@@ -45,7 +45,7 @@ module.exports = class SqsQueueParallel extends events.EventEmitter
 					async.eachSeries queue.Messages, (message, next) ->
 						self.emit "message",
 							type: 'message'
-							data: JSON.parse(message.Body) or message.Body
+							data: if message.body.indexOf('<?xml') < 0 then JSON.parse(message.body) else (JSON.parse(message.body) or message.body)
 							message: message
 							metadata: queue.ResponseMetadata
 							url: self.url
