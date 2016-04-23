@@ -1,5 +1,5 @@
 /**
- * sqs-queue-parallel 0.1.6 <https://github.com/bigluck/sqs-queue-parallel>
+ * sqs-queue-parallel 0.1.7 <https://github.com/bigluck/sqs-queue-parallel>
  * Create a poll of Amazon SQS queue watchers and each one can receive 1+ messages
  *
  * Available under MIT license <https://github.com/bigluck/sqs-queue-parallel/raw/master/LICENSE>
@@ -74,9 +74,15 @@
               console.log("SqsQueueParallel " + self.config.name + "[" + index + "]: " + queue.Messages.length + " new messages");
             }
             return async.eachSeries(queue.Messages, function(message, next) {
+              var data;
+              try {
+                data = JSON.parse(message.Body);
+              } catch (_error) {
+                data = message.Body;
+              }
               return self.emit("message", {
                 type: 'message',
-                data: JSON.parse(message.Body) || message.Body,
+                data: data,
                 message: message,
                 metadata: queue.ResponseMetadata,
                 url: self.url,
