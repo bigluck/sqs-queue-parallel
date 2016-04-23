@@ -1,5 +1,5 @@
 /**
- * sqs-queue-parallel 0.1.6 <https://github.com/bigluck/sqs-queue-parallel>
+ * sqs-queue-parallel 0.1.7 <https://github.com/bigluck/sqs-queue-parallel>
  * Create a poll of Amazon SQS queue watchers and each one can receive 1+ messages
  *
  * Available under MIT license <https://github.com/bigluck/sqs-queue-parallel/raw/master/LICENSE>
