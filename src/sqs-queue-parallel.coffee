@@ -43,12 +43,10 @@ module.exports = class SqsQueueParallel extends events.EventEmitter
 					return next null unless queue.Messages?[0]
 					console.log "SqsQueueParallel #{ self.config.name }[#{ index }]: #{ queue.Messages.length } new messages" if self.config.debug
 					async.eachSeries queue.Messages, (message, next) ->
-
 						try
 					    	data = JSON.parse(message.Body)
 						catch
 							data = message.Body
-
 						self.emit "message",
 							type: 'message'
 							data: data
