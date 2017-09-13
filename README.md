@@ -4,7 +4,7 @@ sqs-queue-parallel is a **node.js** library build on top of **Amazon AWS SQS** w
 
 You can create a poll of SQS queue watchers, each one can receive 1 or more messages from Amazon SQS.
 
-With sqs-queue-parallel you need just to configure your AWS private keys, setup your one o more `message` event callbacks and wait for new messages to be processed.
+With sqs-queue-parallel you need just to configure your AWS private keys, setup your one or more `message` event callbacks and wait for new messages to be processed.
 
 
 
