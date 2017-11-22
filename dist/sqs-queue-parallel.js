@@ -74,9 +74,15 @@
               console.log("SqsQueueParallel " + self.config.name + "[" + index + "]: " + queue.Messages.length + " new messages");
             }
             return async.eachSeries(queue.Messages, function(message, next) {
+              var messageBody;
+              try {
+                messageBody = JSON.parse(message.Body);
+              } catch (_error) {
+                messageBody = message.Body;
+              }
               return self.emit("message", {
                 type: 'message',
-                data: JSON.parse(message.Body) || message.Body,
+                data: messageBody,
                 message: message,
                 metadata: queue.ResponseMetadata,
                 url: self.url,
